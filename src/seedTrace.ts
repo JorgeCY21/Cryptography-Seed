@@ -22,6 +22,8 @@ import type {
 
 type SeedSubkeyPair = [number, number];
 
+export const MAX_KEY_BYTES = 16;
+
 const joinWordPairHex = (left: number, right: number): string =>
   `${numberToHex32(left)}${numberToHex32(right)}`;
 
@@ -154,6 +156,26 @@ const stripPkcs7Padding = (
 const decodeUtf8Strict = (bytes: Uint8Array): string =>
   new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 
+export const getUtf8ByteLength = (value: string): number =>
+  new TextEncoder().encode(value).length;
+
+export const getNormalizedHexLength = (value: string): number =>
+  sanitizeHex(value).length;
+
+export const validateSecretKey = (key: string): string | null => {
+  if (!key.trim()) {
+    return 'Ingresa una clave secreta antes de continuar.';
+  }
+
+  const keyBytesLength = getUtf8ByteLength(key);
+
+  if (keyBytesLength > MAX_KEY_BYTES) {
+    return `La clave supera el limite de ${MAX_KEY_BYTES} bytes UTF-8. Usa una clave mas corta para evitar recortes.`;
+  }
+
+  return null;
+};
+
 export const createEncryptionTrace = (message: string, key: string): SeedEncryptionTrace => {
   const preparedKey = prepararClave(key);
   const subkeys = generarSubclaves(preparedKey);
@@ -279,26 +301,46 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
 };
 
 export const validateDecryptInput = (cipherHex: string, key: string): string | null => {
-  if (!cipherHex.trim() || !key.trim()) {
-    return 'Completa el texto cifrado y la clave antes de desencriptar.';
+  if (!cipherHex.trim()) {
+    return 'Completa el texto cifrado antes de desencriptar.';
+  }
+
+  const keyValidation = validateSecretKey(key);
+
+  if (keyValidation) {
+    return keyValidation;
   }
 
   const normalized = sanitizeHex(cipherHex);
+
+  if (!normalized) {
+    return 'El texto cifrado no puede quedar vacio despues de quitar espacios.';
+  }
 
   if (!/^[0-9a-f]+$/i.test(normalized)) {
     return 'El texto cifrado debe contener solo caracteres hexadecimales.';
   }
 
+  if (normalized.length % 2 !== 0) {
+    return 'El texto cifrado debe tener una cantidad par de caracteres hexadecimales.';
+  }
+
   if (normalized.length % 32 !== 0) {
-    return 'La longitud hexadecimal debe ser múltiplo de 32 caracteres (16 bytes por bloque).';
+    return 'La longitud hexadecimal debe ser multiplo de 32 caracteres (16 bytes por bloque).';
   }
 
   return null;
 };
 
 export const validateEncryptInput = (message: string, key: string): string | null => {
-  if (!message.trim() || !key.trim()) {
-    return 'Completa el mensaje y la clave antes de encriptar.';
+  if (!message.trim()) {
+    return 'Completa el mensaje antes de encriptar.';
+  }
+
+  const keyValidation = validateSecretKey(key);
+
+  if (keyValidation) {
+    return keyValidation;
   }
 
   return null;

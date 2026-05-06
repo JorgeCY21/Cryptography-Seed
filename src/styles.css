@@ -187,6 +187,15 @@ code {
   color: #d9e6f2;
 }
 
+.field-note {
+  color: #9fb2c8;
+  font-size: 0.84rem;
+}
+
+.field-note.warning {
+  color: #ffb36b;
+}
+
 .field textarea,
 .field input {
   width: 100%;

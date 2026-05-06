@@ -11,6 +11,9 @@ import { SubkeysTable } from './components/SeedVisualizer/SubkeysTable';
 import {
   createDecryptionTrace,
   createEncryptionTrace,
+  getNormalizedHexLength,
+  getUtf8ByteLength,
+  MAX_KEY_BYTES,
   validateDecryptInput,
   validateEncryptInput,
 } from './seedTrace';
@@ -29,6 +32,11 @@ export default function SeedVisualizer() {
   const [decryptTrace, setDecryptTrace] = useState<SeedDecryptionTrace | null>(null);
 
   const currentResult = mode === 'encrypt' ? encryptTrace?.finalResultHex ?? '' : decryptTrace?.finalPlaintext ?? '';
+  const keyByteLength = getUtf8ByteLength(keyText);
+  const normalizedHexLength = getNormalizedHexLength(message);
+  const liveValidation =
+    mode === 'encrypt' ? validateEncryptInput(message, keyText) : validateDecryptInput(message, keyText);
+  const canRun = liveValidation === null;
 
   const mapProcessError = (traceError: unknown): string => {
     if (!(traceError instanceof Error)) {
@@ -151,6 +159,10 @@ export default function SeedVisualizer() {
           message={message}
           keyText={keyText}
           error={error}
+          keyByteLength={keyByteLength}
+          maxKeyBytes={MAX_KEY_BYTES}
+          normalizedHexLength={normalizedHexLength}
+          canRun={canRun}
           onMessageChange={setMessage}
           onKeyChange={setKeyText}
           onRun={handleRun}

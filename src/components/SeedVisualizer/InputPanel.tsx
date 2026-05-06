@@ -5,6 +5,10 @@ interface InputPanelProps {
   message: string;
   keyText: string;
   error: string | null;
+  keyByteLength: number;
+  maxKeyBytes: number;
+  normalizedHexLength: number;
+  canRun: boolean;
   onMessageChange: (value: string) => void;
   onKeyChange: (value: string) => void;
   onRun: () => void;
@@ -17,6 +21,10 @@ export function InputPanel({
   message,
   keyText,
   error,
+  keyByteLength,
+  maxKeyBytes,
+  normalizedHexLength,
+  canRun,
   onMessageChange,
   onKeyChange,
   onRun,
@@ -55,6 +63,9 @@ export function InputPanel({
             onChange={(event) => onKeyChange(event.target.value)}
             placeholder="Ingresa la clave como texto normal"
           />
+          <small className={keyByteLength > maxKeyBytes ? 'field-note warning' : 'field-note'}>
+            {keyByteLength}/{maxKeyBytes} bytes UTF-8
+          </small>
         </label>
       </div>
 
@@ -64,16 +75,21 @@ export function InputPanel({
       </p>
 
       {!isEncrypt ? (
-        <p className="section-copy">
-          Usa el texto cifrado en hexadecimal exacto. Si la clave no coincide o pegas Base64 en lugar de
-          hexadecimal, el algoritmo puede terminar en padding invalido.
-        </p>
+        <>
+          <p className="section-copy">
+            Longitud hexadecimal util: {normalizedHexLength} caracteres. Cada bloque valido necesita 32 caracteres.
+          </p>
+          <p className="section-copy">
+            Usa el texto cifrado en hexadecimal exacto. Si la clave no coincide o pegas Base64 en lugar de
+            hexadecimal, el algoritmo puede terminar en padding invalido.
+          </p>
+        </>
       ) : null}
 
       {error ? <div className="error-banner">{error}</div> : null}
 
       <div className="actions-row">
-        <button type="button" className="primary-button" onClick={onRun}>
+        <button type="button" className="primary-button" onClick={onRun} disabled={!canRun}>
           {isEncrypt ? 'Encriptar' : 'Desencriptar'}
         </button>
         <button type="button" className="secondary-button" onClick={onClear}>
