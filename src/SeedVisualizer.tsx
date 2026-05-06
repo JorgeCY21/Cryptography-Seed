@@ -147,6 +147,16 @@ export default function SeedVisualizer() {
             Recorre el cifrado y el descifrado bloque por bloque, ronda por ronda, con una vista pensada para
             explicar el funcionamiento interno de una red Feistel sin alterar la implementacion original.
           </p>
+          <p className="authors-line">Autores: 
+            <br></br>
+            Condorios Yllapuma Jorge
+            <br></br>
+            Turpo Añasco Jhamyl
+            <br></br>
+            Umasi Coaguila Geraldine
+            <br></br>
+            Valdivia Luna Carlo
+          </p>
         </div>
         <ModeTabs mode={mode} onChange={handleModeChange} />
       </section>
@@ -177,8 +187,6 @@ export default function SeedVisualizer() {
         <ResultPanel
           title={mode === 'encrypt' ? 'Mensaje cifrado final en hexadecimal' : 'Mensaje original recuperado'}
           value={currentResult}
-          secondaryTitle={mode === 'encrypt' ? 'Mensaje final en Base64' : undefined}
-          secondaryValue={mode === 'encrypt' ? encryptTrace?.finalResultBase64 : undefined}
           onCopy={handleCopy}
         />
       </div>

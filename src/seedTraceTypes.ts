@@ -75,7 +75,6 @@ export interface SeedEncryptionTrace {
   subkeys: SeedSubkeyTrace[];
   blocks: SeedBlockTrace[];
   finalResultHex: string;
-  finalResultBase64: string;
 }
 
 export interface SeedDecryptionTrace {

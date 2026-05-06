@@ -79,6 +79,12 @@ code {
   color: #b7c9dd;
 }
 
+.authors-line {
+  margin-top: 10px;
+  color: #dbe8f5;
+  font-weight: 600;
+}
+
 .eyebrow,
 .section-kicker,
 .kv-label {
