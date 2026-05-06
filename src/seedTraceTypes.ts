@@ -40,15 +40,23 @@ export interface CipherInputSummary {
 export interface SeedSubkeyTrace {
   index: number;
   label: string;
+  k0Hex: string;
+  k1Hex: string;
   hex: string;
 }
 
 export interface SeedRoundTrace {
   round: number;
+  LBeforeWordsHex: [string, string];
+  RBeforeWordsHex: [string, string];
   LBeforeHex: string;
   RBeforeHex: string;
+  subkeyWordsHex: [string, string];
   subkeyHex: string;
+  fResultWordsHex: [string, string];
   fResultHex: string;
+  LAfterWordsHex: [string, string];
+  RAfterWordsHex: [string, string];
   LAfterHex: string;
   RAfterHex: string;
 }

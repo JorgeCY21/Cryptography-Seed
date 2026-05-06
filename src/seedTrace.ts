@@ -1,21 +1,16 @@
 import {
   F,
-  agregar_padding,
-  bigint_a_bytes64,
-  bytes64_a_bigint,
-  cifrar_bloque,
+  agregarPadding,
+  bytesAEntero,
+  bytesAHex,
+  cifrarBloque,
   generarSubclaves,
+  hexABytes,
   prepararClave,
   seed_cifrar,
   seed_descifrar,
 } from '../archivo';
-import {
-  bigintToHex64,
-  bytesToHex,
-  safeTextPreview,
-  sanitizeHex,
-  splitBlocks,
-} from './seedFormatters';
+import { numberToHex32, safeTextPreview, sanitizeHex, splitBlocks } from './seedFormatters';
 import type {
   SeedBlockTrace,
   SeedDecryptionTrace,
@@ -24,67 +19,89 @@ import type {
   SeedSubkeyTrace,
 } from './seedTraceTypes';
 
-const bytesFromHex = (hex: string): Uint8Array =>
-  new Uint8Array(hex.match(/.{1,2}/g)?.map((part) => parseInt(part, 16)) ?? []);
+type SeedSubkeyPair = [number, number];
 
-const subkeysToTrace = (subkeys: Uint8Array[]): SeedSubkeyTrace[] =>
+const joinWordPairHex = (left: number, right: number): string =>
+  `${numberToHex32(left)}${numberToHex32(right)}`;
+
+const subkeysToTrace = (subkeys: SeedSubkeyPair[]): SeedSubkeyTrace[] =>
   subkeys.map((subkey, index) => ({
     index,
     label: `K${index}`,
-    hex: bytesToHex(subkey),
+    k0Hex: numberToHex32(subkey[0]),
+    k1Hex: numberToHex32(subkey[1]),
+    hex: joinWordPairHex(subkey[0], subkey[1]),
   }));
 
 const createRoundTrace = (
   round: number,
-  L: bigint,
-  R: bigint,
-  subkey: Uint8Array,
-  isLastRound: boolean,
-): { roundTrace: SeedRoundTrace; nextL: bigint; nextR: bigint } => {
-  const fResult = F(R, subkey);
-  const nextR = isLastRound ? R : (L ^ fResult);
-  const nextL = isLastRound ? (L ^ fResult) : R;
+  l0: number,
+  l1: number,
+  r0: number,
+  r1: number,
+  subkey: SeedSubkeyPair,
+): { roundTrace: SeedRoundTrace; nextL0: number; nextL1: number; nextR0: number; nextR1: number } => {
+  const [f0, f1] = F(r0, r1, subkey[0], subkey[1]);
+  const nextR0 = (f0 ^ l0) >>> 0;
+  const nextR1 = (f1 ^ l1) >>> 0;
+  const nextL0 = r0;
+  const nextL1 = r1;
 
   return {
     roundTrace: {
       round,
-      LBeforeHex: bigintToHex64(L),
-      RBeforeHex: bigintToHex64(R),
-      subkeyHex: bytesToHex(subkey),
-      fResultHex: bigintToHex64(fResult),
-      LAfterHex: bigintToHex64(nextL),
-      RAfterHex: bigintToHex64(nextR),
+      LBeforeWordsHex: [numberToHex32(l0), numberToHex32(l1)],
+      RBeforeWordsHex: [numberToHex32(r0), numberToHex32(r1)],
+      LBeforeHex: joinWordPairHex(l0, l1),
+      RBeforeHex: joinWordPairHex(r0, r1),
+      subkeyWordsHex: [numberToHex32(subkey[0]), numberToHex32(subkey[1])],
+      subkeyHex: joinWordPairHex(subkey[0], subkey[1]),
+      fResultWordsHex: [numberToHex32(f0), numberToHex32(f1)],
+      fResultHex: joinWordPairHex(f0, f1),
+      LAfterWordsHex: [numberToHex32(nextL0), numberToHex32(nextL1)],
+      RAfterWordsHex: [numberToHex32(nextR0), numberToHex32(nextR1)],
+      LAfterHex: joinWordPairHex(nextL0, nextL1),
+      RAfterHex: joinWordPairHex(nextR0, nextR1),
     },
-    nextL,
-    nextR,
+    nextL0,
+    nextL1,
+    nextR0,
+    nextR1,
   };
 };
 
-const traceBlock = (block: Uint8Array, subkeys: Uint8Array[], index: number): SeedBlockTrace => {
-  let L = bytes64_a_bigint(block.slice(0, 8));
-  let R = bytes64_a_bigint(block.slice(8, 16));
+const traceBlock = (
+  block: Uint8Array,
+  subkeysInOrder: SeedSubkeyPair[],
+  index: number,
+): SeedBlockTrace => {
+  let l0 = bytesAEntero(block.slice(0, 4));
+  let l1 = bytesAEntero(block.slice(4, 8));
+  let r0 = bytesAEntero(block.slice(8, 12));
+  let r1 = bytesAEntero(block.slice(12, 16));
   const rounds: SeedRoundTrace[] = [];
 
-  for (let roundIndex = 0; roundIndex < subkeys.length; roundIndex += 1) {
-    const { roundTrace, nextL, nextR } = createRoundTrace(
+  for (let roundIndex = 0; roundIndex < subkeysInOrder.length; roundIndex += 1) {
+    const { roundTrace, nextL0, nextL1, nextR0, nextR1 } = createRoundTrace(
       roundIndex + 1,
-      L,
-      R,
-      subkeys[roundIndex],
-      roundIndex === subkeys.length - 1,
+      l0,
+      l1,
+      r0,
+      r1,
+      subkeysInOrder[roundIndex],
     );
 
     rounds.push(roundTrace);
-    L = nextL;
-    R = nextR;
+    l0 = nextL0;
+    l1 = nextL1;
+    r0 = nextR0;
+    r1 = nextR1;
   }
-
-  const outputBlock = new Uint8Array([...bigint_a_bytes64(L), ...bigint_a_bytes64(R)]);
 
   return {
     index,
-    inputBlockHex: bytesToHex(block),
-    outputBlockHex: bytesToHex(outputBlock),
+    inputBlockHex: bytesAHex(block),
+    outputBlockHex: joinWordPairHex(r0, r1) + joinWordPairHex(l0, l1),
     rounds,
   };
 };
@@ -92,7 +109,7 @@ const traceBlock = (block: Uint8Array, subkeys: Uint8Array[], index: number): Se
 export const createEncryptionTrace = (message: string, key: string): SeedEncryptionTrace => {
   const preparedKey = prepararClave(key);
   const subkeys = generarSubclaves(preparedKey);
-  const paddedMessage = agregar_padding(message);
+  const paddedMessage = agregarPadding(message);
   const messageBytes = new TextEncoder().encode(message);
   const blocks = splitBlocks(paddedMessage).map((block, index) => traceBlock(block, subkeys, index));
 
@@ -112,14 +129,14 @@ export const createEncryptionTrace = (message: string, key: string): SeedEncrypt
     keyPreparation: {
       originalKey: key,
       preparedKeyBytes: preparedKey,
-      preparedKeyHex: bytesToHex(preparedKey),
+      preparedKeyHex: bytesAHex(preparedKey),
       preparedKeyTextPreview: safeTextPreview(preparedKey),
     },
     padding: {
       messageBytes,
-      messageBytesHex: bytesToHex(messageBytes),
+      messageBytesHex: bytesAHex(messageBytes),
       paddedBytes: paddedMessage,
-      paddedHex: bytesToHex(paddedMessage),
+      paddedHex: bytesAHex(paddedMessage),
       paddingLength: paddedMessage.length - messageBytes.length,
     },
     subkeys: subkeysToTrace(subkeys),
@@ -130,16 +147,16 @@ export const createEncryptionTrace = (message: string, key: string): SeedEncrypt
 
 export const createDecryptionTrace = (cipherHexInput: string, key: string): SeedDecryptionTrace => {
   const cipherHex = sanitizeHex(cipherHexInput);
-  const cipherBytes = bytesFromHex(cipherHex);
+  const cipherBytes = hexABytes(cipherHex);
   const preparedKey = prepararClave(key);
   const subkeys = generarSubclaves(preparedKey);
   const reversedSubkeys = [...subkeys].reverse();
   const blocks = splitBlocks(cipherBytes).map((block, index) => traceBlock(block, reversedSubkeys, index));
   const paddedPlaintextBytes = new Uint8Array(
-    blocks.flatMap((block) => Array.from(bytesFromHex(block.outputBlockHex))),
+    blocks.flatMap((block) => Array.from(hexABytes(block.outputBlockHex))),
   );
   const paddingLength = paddedPlaintextBytes[paddedPlaintextBytes.length - 1] ?? 0;
-  const unpaddedPlaintextBytes = paddedPlaintextBytes.slice(0, -paddingLength || paddedPlaintextBytes.length);
+  const unpaddedPlaintextBytes = paddedPlaintextBytes.slice(0, paddedPlaintextBytes.length - paddingLength);
   const finalPlaintext = new TextDecoder().decode(unpaddedPlaintextBytes);
   const referencePlaintext = seed_descifrar(cipherHex, key);
 
@@ -150,18 +167,18 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
   return {
     input: {
       mode: 'decrypt',
-      originalCipherHex: cipherHex,
+      originalCipherHex: cipherHex.toUpperCase(),
       originalKey: key,
     },
     cipherInput: {
-      cipherHex,
+      cipherHex: cipherHex.toUpperCase(),
       cipherBytes,
-      cipherBytesHex: bytesToHex(cipherBytes),
+      cipherBytesHex: bytesAHex(cipherBytes),
     },
     keyPreparation: {
       originalKey: key,
       preparedKeyBytes: preparedKey,
-      preparedKeyHex: bytesToHex(preparedKey),
+      preparedKeyHex: bytesAHex(preparedKey),
       preparedKeyTextPreview: safeTextPreview(preparedKey),
     },
     subkeys: subkeysToTrace(subkeys),
@@ -170,9 +187,9 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
     paddingRemoved: {
       paddingLength,
       paddedPlaintextBytes,
-      paddedPlaintextHex: bytesToHex(paddedPlaintextBytes),
+      paddedPlaintextHex: bytesAHex(paddedPlaintextBytes),
       unpaddedPlaintextBytes,
-      unpaddedPlaintextHex: bytesToHex(unpaddedPlaintextBytes),
+      unpaddedPlaintextHex: bytesAHex(unpaddedPlaintextBytes),
     },
     finalPlaintext: referencePlaintext,
   };
@@ -204,5 +221,8 @@ export const validateEncryptInput = (message: string, key: string): string | nul
   return null;
 };
 
-export const verifyBlockAgainstOriginal = (block: Uint8Array, subkeys: Uint8Array[], expectedHex: string): boolean =>
-  bytesToHex(cifrar_bloque(block, subkeys)) === expectedHex;
+export const verifyBlockAgainstOriginal = (
+  block: Uint8Array,
+  subkeys: SeedSubkeyPair[],
+  expectedHex: string,
+): boolean => bytesAHex(cifrarBloque(block, subkeys)) === expectedHex;

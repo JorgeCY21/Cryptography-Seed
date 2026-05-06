@@ -1,8 +1,8 @@
 export const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0').toUpperCase()).join('');
 
 export const bytesToGroupedHex = (bytes: Uint8Array, groupSize = 4): string => {
-  const pairs = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
+  const pairs = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0').toUpperCase());
   const groups: string[] = [];
 
   for (let index = 0; index < pairs.length; index += groupSize) {
@@ -13,7 +13,10 @@ export const bytesToGroupedHex = (bytes: Uint8Array, groupSize = 4): string => {
 };
 
 export const bigintToHex64 = (value: bigint): string =>
-  value.toString(16).padStart(16, '0');
+  value.toString(16).padStart(16, '0').toUpperCase();
+
+export const numberToHex32 = (value: number): string =>
+  (value >>> 0).toString(16).padStart(8, '0').toUpperCase();
 
 export const sanitizeHex = (value: string): string =>
   value.replace(/\s+/g, '').toLowerCase();
@@ -21,7 +24,7 @@ export const sanitizeHex = (value: string): string =>
 export const safeTextPreview = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => {
     if (byte === 0) {
-      return '·';
+      return '.';
     }
 
     if (byte >= 32 && byte <= 126) {

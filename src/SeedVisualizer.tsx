@@ -112,11 +112,11 @@ export default function SeedVisualizer() {
     <main className="app-shell">
       <section className="hero-panel">
         <div className="hero-copy">
-          <span className="eyebrow">Exposición académica</span>
+          <span className="eyebrow">Exposicion academica</span>
           <h1>Visualizador del algoritmo SEED</h1>
           <p>
             Recorre el cifrado y el descifrado bloque por bloque, ronda por ronda, con una vista pensada para
-            explicar el funcionamiento interno de una red Feistel sin alterar la implementación original.
+            explicar el funcionamiento interno de una red Feistel sin alterar la implementacion original.
           </p>
         </div>
         <ModeTabs mode={mode} onChange={setMode} />
@@ -179,8 +179,8 @@ function renderEncryptTrace(trace: SeedEncryptionTrace | null) {
             </div>
           </div>
         </div>
-        <ExplanationBox title="Idea académica">
-          El padding completa el mensaje para que tenga tamaño múltiplo de 16 bytes, permitiendo procesarlo bloque a
+        <ExplanationBox title="Idea academica">
+          El padding completa el mensaje para que tenga tamano multiplo de 16 bytes, permitiendo procesarlo bloque a
           bloque con la estructura del algoritmo.
         </ExplanationBox>
       </section>
@@ -210,7 +210,7 @@ function renderEncryptTrace(trace: SeedEncryptionTrace | null) {
         />
         <ExplanationBox title="Red Feistel">
           En una red Feistel, el bloque se divide en dos mitades L y R. En cada ronda, la mitad derecha alimenta la
-          función F y su resultado transforma a la mitad izquierda.
+          funcion F y su resultado transforma a la mitad izquierda.
         </ExplanationBox>
       </section>
 
@@ -218,7 +218,7 @@ function renderEncryptTrace(trace: SeedEncryptionTrace | null) {
         <div id="rounds">
           <BlocksViewer
             title="Proceso por bloque"
-            subtitle="Cada bloque de 16 bytes puede expandirse para revisar todas las rondas, sus valores L y R y el resultado de la función F."
+            subtitle="Cada bloque de 16 bytes puede expandirse para revisar todas las rondas, sus valores L y R y el resultado de la funcion F."
             blocks={trace.blocks}
           />
         </div>
@@ -255,9 +255,9 @@ function renderDecryptTrace(trace: SeedDecryptionTrace | null) {
             </div>
           </div>
         </div>
-        <ExplanationBox title="Idea académica">
-          Para descifrar, se aplica el mismo proceso usando las subclaves en orden inverso. Esa simetría es una
-          característica clave de la red Feistel.
+        <ExplanationBox title="Idea academica">
+          Para descifrar, se aplica el mismo proceso usando las subclaves en orden inverso. Esa simetria es una
+          caracteristica clave de la red Feistel.
         </ExplanationBox>
       </section>
 
@@ -284,7 +284,7 @@ function renderDecryptTrace(trace: SeedDecryptionTrace | null) {
 
       <div id="padding">
         <PaddingCard
-          sourceLabel="Bloque descifrado y eliminación del padding"
+          sourceLabel="Bloque descifrado y eliminacion del padding"
           sourceHex={trace.paddingRemoved.paddedPlaintextHex}
           paddedHex={trace.paddingRemoved.unpaddedPlaintextHex}
           paddingLength={trace.paddingRemoved.paddingLength}
@@ -295,7 +295,7 @@ function renderDecryptTrace(trace: SeedDecryptionTrace | null) {
         <div id="rounds">
           <BlocksViewer
             title="Proceso inverso por bloque"
-            subtitle="Expande cada bloque para observar las rondas inversas, los valores L y R y la transformación que permite recuperar el mensaje original."
+            subtitle="Expande cada bloque para observar las rondas inversas, los valores L y R y la transformacion que permite recuperar el mensaje original."
             blocks={trace.blocks}
           />
         </div>

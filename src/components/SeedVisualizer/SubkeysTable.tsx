@@ -19,8 +19,10 @@ export function SubkeysTable({ title, subtitle, subkeys }: SubkeysTableProps) {
           <thead>
             <tr>
               <th>Etiqueta</th>
-              <th>Índice</th>
-              <th>Valor hexadecimal</th>
+              <th>Indice</th>
+              <th>K0</th>
+              <th>K1</th>
+              <th>Subclave completa</th>
             </tr>
           </thead>
           <tbody>
@@ -28,6 +30,12 @@ export function SubkeysTable({ title, subtitle, subkeys }: SubkeysTableProps) {
               <tr key={`${subkey.label}-${subkey.hex}`}>
                 <td>{subkey.label}</td>
                 <td>{subkey.index}</td>
+                <td>
+                  <code>{subkey.k0Hex}</code>
+                </td>
+                <td>
+                  <code>{subkey.k1Hex}</code>
+                </td>
                 <td>
                   <code>{subkey.hex}</code>
                 </td>

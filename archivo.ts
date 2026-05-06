@@ -31,9 +31,8 @@ const S0 = [
   0x31, 0xEA, 0x6D, 0x5F, 0xE4, 0xF0, 0xCD, 0x88,
   0x16, 0x3A, 0x58, 0xD4, 0x62, 0x29, 0x07, 0x33,
   0xE8, 0x1B, 0x05, 0x79, 0x90, 0x6A, 0x2A, 0x9A
-]
+];
 
-// S-Box S1: segunda tabla de sustitución
 const S1 = [
   0x38, 0xE8, 0x2D, 0xA6, 0xCF, 0xDE, 0xB3, 0xB8,
   0xAF, 0x60, 0x55, 0xC7, 0x44, 0x6F, 0x6B, 0x5B,
@@ -67,103 +66,98 @@ const S1 = [
   0x0E, 0x50, 0x39, 0x26, 0x32, 0x84, 0x69, 0x93,
   0x37, 0xE7, 0x24, 0xA4, 0xCB, 0x53, 0x0A, 0x87,
   0xD9, 0x4C, 0x83, 0x8F, 0xCE, 0x3B, 0x4A, 0xB7
-]
+];
 
-// Constantes KCi usadas en el Key Schedule
-// Derivadas del número áureo para evitar patrones predecibles
 const KC = [
   0x9E3779B9, 0x3C6EF373, 0x78DDE6E6, 0xF1BBCDCC,
   0xE3779B99, 0xC6EF3733, 0x8DDE6E67, 0x1BBCDCCF,
   0x3779B99E, 0x6EF3733C, 0xDDE6E678, 0xBBCDCCF1,
   0x779B99E3, 0xEF3733C6, 0xDE6E678D, 0xBCDCCF1B
-]
+];
 
-// Máscaras para la función G
-const M0 = 0xFC  // 11111100
-const M1 = 0xF3  // 11110011
-const M2 = 0xCF  // 11001111
-const M3 = 0x3F  // 00111111
+const M0 = 0xFC;
+const M1 = 0xF3;
+const M2 = 0xCF;
+const M3 = 0x3F;
 
-// Módulo para operaciones de 32 bits
-const MOD32 = 0x100000000  // 2^32
+const MOD32 = 0x100000000;
 
 export const prepararClave = (clave: string): Uint8Array => {
   const claveBytes = new TextEncoder().encode(clave);
+  const key = new Uint8Array(16);
 
-  if (claveBytes.length > 16) {
-    return claveBytes.slice(0, 16);
-  } else if (claveBytes.length < 16) {
-    const paddedClave = new Uint8Array(16);
-    paddedClave.set(claveBytes);
-    return paddedClave;
+  for (let i = 0; i < 16; i++) {
+    key[i] = i < claveBytes.length ? claveBytes[i] : 0x00;
   }
 
-  return claveBytes;
-}
-
-export const bytesToPythonStyle = (bytes: Uint8Array): string => {
-  let result = "b'";
-
-  for (const byte of bytes) {
-    // caracteres ASCII imprimibles (espacio hasta ~)
-    if (byte >= 32 && byte <= 126 && byte !== 92 && byte !== 39) {
-      result += String.fromCharCode(byte);
-    } else {
-      result += '\\x' + byte.toString(16).padStart(2, '0');
-    }
-  }
-
-  result += "'";
-  return result;
+  return key;
 };
 
-export const agregar_padding = (mensaje: string): Uint8Array => {
+export const agregarPadding = (mensaje: string): Uint8Array => {
   const mensajeBytes = new TextEncoder().encode(mensaje);
-  const paddingLength = (16 - (mensajeBytes.length % 16)) % 16;
-  const paddedMensaje = new Uint8Array(mensajeBytes.length + paddingLength);
-  paddedMensaje.set(mensajeBytes);
-  // El padding se llena con el número de bytes de padding, siguiendo el estándar PKCS#7
-  paddedMensaje.fill(paddingLength, mensajeBytes.length);
-  return paddedMensaje;
-}
 
-export const bytes_a_entero = (bytes: Uint8Array): number => {
-  let result = 0;
-  for (let i = 0; i < bytes.length; i++) {
-    // << 8 es equivalente a multiplicar por 256, lo que desplaza los bits a la izquierda
-    // | es el operador OR a nivel de bits, que combina los bits del resultado actual con el nuevo byte
-    result = ((result << 8) | bytes[i]) >>> 0; // >>> 0 asegura que el resultado sea tratado como un entero sin signo de 32 bits
+  let padding = 16 - (mensajeBytes.length % 16);
+
+  if (padding === 0) {
+    padding = 16;
   }
 
-  return result;
-}
+  const plaintext = new Uint8Array(mensajeBytes.length + padding);
+  plaintext.set(mensajeBytes);
 
-export const bytes64_a_bigint = (bytes: Uint8Array): bigint => {
+  for (let i = mensajeBytes.length; i < plaintext.length; i++) {
+    plaintext[i] = padding;
+  }
+
+  return plaintext;
+};
+
+export const bytesAEntero = (bytes: Uint8Array): number => {
+  return (
+    ((bytes[0] << 24) |
+      (bytes[1] << 16) |
+      (bytes[2] << 8) |
+      bytes[3]) >>> 0
+  );
+};
+
+export const enteroABytes = (x: number): number[] => {
+  return [
+    (x >>> 24) & 0xff,
+    (x >>> 16) & 0xff,
+    (x >>> 8) & 0xff,
+    x & 0xff
+  ];
+};
+
+export const bytes64ABigint = (bytes: Uint8Array): bigint => {
   let result = 0n;
+
   for (const b of bytes) {
     result = (result << 8n) | BigInt(b);
   }
+
   return result;
 };
 
-export const bigint_a_bytes64 = (n: bigint): number[] => {
+export const bigintABytes64 = (n: bigint): number[] => {
   const bytes = new Array(8).fill(0);
+
   for (let i = 7; i >= 0; i--) {
-    bytes[i] = Number(n & 0xFFn);
+    bytes[i] = Number(n & 0xffn);
     n >>= 8n;
   }
+
   return bytes;
 };
 
 export const suma32 = (a: number, b: number): number => {
-  // """Suma modular de 32 bits: si el resultado supera 32 bits, se descarta el resto"""
-  return (a + b) >>> 0; // >>> 0 asegura que el resultado sea tratado como un entero sin signo de 32 bits
-}
+  return (a + b) >>> 0;
+};
 
 export const resta32 = (a: number, b: number): number => {
-  //  """Resta modular de 32 bits"""
-  return (a - b + MOD32) % MOD32  // Agregar MOD32 para evitar resultados negativos
-}
+  return (a - b + MOD32) >>> 0;
+};
 
 export const rotDerecha64 = (valor: bigint, bits: bigint): bigint => {
   const mask = (1n << 64n) - 1n;
@@ -176,215 +170,225 @@ export const rotIzquierda64 = (valor: bigint, bits: bigint): bigint => {
 };
 
 export const G = (x: number): number => {
-  //console.log(`Función G: input = ${x}`);
+  x = x >>> 0;
 
-  // >> es el operador de desplazamiento a la derecha, es como dividir por 256, lo que mueve los bits a la derecha
-  // & es el operador AND a nivel de bits, que extrae solo los bits relevantes para cada byte
-  const byte0 = x & 0xFF; // Extrae el byte menos significativo (bits 0-7)
-  const byte1 = (x >> 8) & 0xFF; // Desplaza 8 bits a la derecha y extrae el siguiente byte (bits 8-15)
-  const byte2 = (x >> 16) & 0xFF; // Desplaza 16 bits a la derecha y extrae el siguiente byte (bits 16-23)
-  const byte3 = (x >> 24) & 0xFF; // Desplaza 24 bits a la derecha y extrae el byte más significativo (bits 24-31)
+  const x0 = x & 0xff;
+  const x1 = (x >>> 8) & 0xff;
+  const x2 = (x >>> 16) & 0xff;
+  const x3 = (x >>> 24) & 0xff;
 
-  //console.log(`Bytes extraídos: byte0 = ${byte0}, byte1 = ${byte1}, byte2 = ${byte2}, byte3 = ${byte3}`);
+  const z0 =
+    (S0[x0] & M0) ^
+    (S1[x1] & M1) ^
+    (S0[x2] & M2) ^
+    (S1[x3] & M3);
 
-  const s0_x0 = S0[byte0]
-  const s1_x1 = S1[byte1]
-  const s0_x2 = S0[byte2]
-  const s1_x3 = S1[byte3]
+  const z1 =
+    (S0[x0] & M1) ^
+    (S1[x1] & M2) ^
+    (S0[x2] & M3) ^
+    (S1[x3] & M0);
 
-  //console.log(`S-Box outputs: S0[${byte0}] = ${s0_x0}, S1[${byte1}] = ${s1_x1}, S0[${byte2}] = ${s0_x2}, S1[${byte3}] = ${s1_x3}`);
+  const z2 =
+    (S0[x0] & M2) ^
+    (S1[x1] & M3) ^
+    (S0[x2] & M0) ^
+    (S1[x3] & M1);
 
-  // La función G combina los resultados de las S-Boxes usando operaciones AND y XOR con las máscaras M0, M1, M2, M3
-  // ^ es el operador XOR a nivel de bits
-  const Z0 = (s0_x0 & M0) ^ (s1_x1 & M1) ^ (s0_x2 & M2) ^ (s1_x3 & M3)
-  const Z1 = (s0_x0 & M1) ^ (s1_x1 & M2) ^ (s0_x2 & M3) ^ (s1_x3 & M0)
-  const Z2 = (s0_x0 & M2) ^ (s1_x1 & M3) ^ (s0_x2 & M0) ^ (s1_x3 & M1)
-  const Z3 = (s0_x0 & M3) ^ (s1_x1 & M0) ^ (s0_x2 & M1) ^ (s1_x3 & M2)
+  const z3 =
+    (S0[x0] & M3) ^
+    (S1[x1] & M0) ^
+    (S0[x2] & M1) ^
+    (S1[x3] & M2);
 
-  //console.log(`Resultados intermedios: Z0 = ${Z0}, Z1 = ${Z1}, Z2 = ${Z2}, Z3 = ${Z3}`);
-
-  // Combina los resultados Z0, Z1, Z2, Z3 en un solo número de 32 bits
-  const result = ((Z3 << 24) | (Z2 << 16) | (Z1 << 8) | Z0) >>> 0;
-  return result;
-
-}
-
-export const F = (R: bigint, Ki: Uint8Array): bigint => {
-  // dividir R (64 bits)
-  const R0 = Number((R >> 32n) & 0xFFFFFFFFn);
-  const R1 = Number(R & 0xFFFFFFFFn);
-
-  // dividir subclave
-  const Ki0 =
-    (Ki[0] << 24) | (Ki[1] << 16) | (Ki[2] << 8) | Ki[3];
-
-  const Ki1 =
-    (Ki[4] << 24) | (Ki[5] << 16) | (Ki[6] << 8) | Ki[7];
-
-  // XOR
-  const A = R0 ^ Ki0;
-  const B = R1 ^ Ki1;
-
-  // capas G
-  const T0 = G(A ^ B);
-  const T1 = G(suma32(T0, A));
-  const T2 = G(suma32(T1, T0));
-
-  const R0_nuevo = suma32(T2, T1);
-  const R1_nuevo = T2;
-
-  // reconstruir 64 bits
-  return (BigInt(R0_nuevo) << 32n) | BigInt(R1_nuevo);
+  return ((z3 << 24) | (z2 << 16) | (z1 << 8) | z0) >>> 0;
 };
 
-export const generarSubclaves = (clave: Uint8Array): Uint8Array[] => {
-  let key_0 = bytes_a_entero(clave.slice(0, 4));
-  let key_1 = bytes_a_entero(clave.slice(4, 8));
-  let key_2 = bytes_a_entero(clave.slice(8, 12));
-  let key_3 = bytes_a_entero(clave.slice(12, 16));
+export const F = (r0: number, r1: number, k0: number, k1: number): [number, number] => {
+  const a = (r0 ^ k0) >>> 0;
+  const b = (r1 ^ k1) >>> 0;
 
-  const subclaves: Uint8Array[] = [];
+  let t1 = G((a ^ b) >>> 0);
+  let t0 = G(suma32(t1, a));
+
+  t1 = G(suma32(t1, t0));
+  t0 = suma32(t0, t1);
+
+  return [t0, t1];
+};
+
+export const generarSubclaves = (clave: Uint8Array): [number, number][] => {
+  let k0 = bytesAEntero(clave.slice(0, 4));
+  let k1 = bytesAEntero(clave.slice(4, 8));
+  let k2 = bytesAEntero(clave.slice(8, 12));
+  let k3 = bytesAEntero(clave.slice(12, 16));
+
+  const subclaves: [number, number][] = [];
 
   for (let i = 0; i < 16; i++) {
-    const KCi = KC[i];
-    //console.log(`Generando subclave ${i}: KC[${i}] = ${KCi}`);
+    const ki0 = G(resta32(suma32(k0, k2), KC[i]));
+    const ki1 = G(suma32(resta32(k1, k3), KC[i]));
 
-    const Ki0 = G(suma32(key_0, resta32(key_2, KCi)))
+    subclaves.push([ki0, ki1]);
 
-    // Ki0_1 es la subclave que se obtiene al restar KCi a key_2 y luego restar el resultado a key_0, todo esto dentro de la función G
-    const Ki1 = G(suma32(resta32(key_1, key_3), KCi))
+    if (i % 2 === 0) {
+      let z = (BigInt(k0) << 32n) | BigInt(k1);
+      z = rotDerecha64(z, 8n);
 
-    const buffer = new Uint8Array(8);
-
-    buffer[0] = (Ki0 >>> 24) & 0xFF;
-    buffer[1] = (Ki0 >>> 16) & 0xFF;
-    buffer[2] = (Ki0 >>> 8) & 0xFF;
-    buffer[3] = Ki0 & 0xFF;
-
-    buffer[4] = (Ki1 >>> 24) & 0xFF;
-    buffer[5] = (Ki1 >>> 16) & 0xFF;
-    buffer[6] = (Ki1 >>> 8) & 0xFF;
-    buffer[7] = Ki1 & 0xFF;
-
-    subclaves.push(buffer);
-
-    if ((i + 1) % 2 == 1) {
-      let combined = (BigInt(key_0) << 32n) | BigInt(key_1);
-
-      combined = rotDerecha64(combined, 8n);
-
-      key_0 = Number((combined >> 32n) & 0xFFFFFFFFn);
-      key_1 = Number(combined & 0xFFFFFFFFn);
+      k0 = Number((z >> 32n) & 0xffffffffn);
+      k1 = Number(z & 0xffffffffn);
     } else {
-      let combined = (BigInt(key_2) << 32n) | BigInt(key_3);
+      let z = (BigInt(k2) << 32n) | BigInt(k3);
+      z = rotIzquierda64(z, 8n);
 
-      combined = rotIzquierda64(combined, 8n);
-
-      key_2 = Number((combined >> 32n) & 0xFFFFFFFFn);
-      key_3 = Number(combined & 0xFFFFFFFFn);
+      k2 = Number((z >> 32n) & 0xffffffffn);
+      k3 = Number(z & 0xffffffffn);
     }
-
   }
 
   return subclaves;
-}
+};
 
-export const cifrar_bloque = (bloque: Uint8Array, subclaves: Uint8Array[]): Uint8Array => {
-  let L = bytes64_a_bigint(bloque.slice(0, 8));
-  let R = bytes64_a_bigint(bloque.slice(8, 16));
+export const cifrarBloque = (
+  bloque: Uint8Array,
+  subclaves: [number, number][]
+): Uint8Array => {
+  let l0 = bytesAEntero(bloque.slice(0, 4));
+  let l1 = bytesAEntero(bloque.slice(4, 8));
+  let r0 = bytesAEntero(bloque.slice(8, 12));
+  let r1 = bytesAEntero(bloque.slice(12, 16));
 
-  for (let i = 0; i < 15; i++) {
-    const T = R
-    R = L ^ F(R, subclaves[i]);
-    L = T;
+  for (let i = 0; i < 16; i++) {
+    const [t0Original, t1Original] = F(r0, r1, subclaves[i][0], subclaves[i][1]);
+
+    const t0 = (t0Original ^ l0) >>> 0;
+    const t1 = (t1Original ^ l1) >>> 0;
+
+    l0 = r0;
+    l1 = r1;
+    r0 = t0;
+    r1 = t1;
   }
 
-  L = L ^ F(R, subclaves[15])
+  return new Uint8Array([
+    ...enteroABytes(r0),
+    ...enteroABytes(r1),
+    ...enteroABytes(l0),
+    ...enteroABytes(l1)
+  ]);
+};
+
+export const descifrarBloque = (
+  bloque: Uint8Array,
+  subclaves: [number, number][]
+): Uint8Array => {
+  let l0 = bytesAEntero(bloque.slice(0, 4));
+  let l1 = bytesAEntero(bloque.slice(4, 8));
+  let r0 = bytesAEntero(bloque.slice(8, 12));
+  let r1 = bytesAEntero(bloque.slice(12, 16));
+
+  for (let i = 15; i >= 0; i--) {
+    const [t0Original, t1Original] = F(r0, r1, subclaves[i][0], subclaves[i][1]);
+
+    const t0 = (t0Original ^ l0) >>> 0;
+    const t1 = (t1Original ^ l1) >>> 0;
+
+    l0 = r0;
+    l1 = r1;
+    r0 = t0;
+    r1 = t1;
+  }
 
   return new Uint8Array([
-    ...bigint_a_bytes64(L),
-    ...bigint_a_bytes64(R)
+    ...enteroABytes(r0),
+    ...enteroABytes(r1),
+    ...enteroABytes(l0),
+    ...enteroABytes(l1)
   ]);
-}
+};
 
-export const descifrar_bloque = (
-  bloque: Uint8Array,
-  subclaves: Uint8Array[]
-): Uint8Array => {
-  // invertir subclaves
-  const subclavesInvertidas = [...subclaves].reverse();
+export const bytesAHex = (bytes: Uint8Array): string => {
+  return Array.from(bytes)
+    .map(byte => byte.toString(16).padStart(2, "0").toUpperCase())
+    .join("");
+};
 
-  // reutilizar la misma función
-  return cifrar_bloque(bloque, subclavesInvertidas);
+export const hexABytes = (hex: string): Uint8Array => {
+  const cleanHex = hex.replace(/\s+/g, "");
+
+  if (cleanHex.length % 2 !== 0) {
+    throw new Error("El hexadecimal no tiene una longitud válida.");
+  }
+
+  return new Uint8Array(
+    cleanHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+  );
 };
 
 export const seed_cifrar = (mensaje: string, clave: string): string => {
+  const key = prepararClave(clave);
+  const subclaves = generarSubclaves(key);
 
-  const clavePreparada = prepararClave(clave);
-  const subclaves = generarSubclaves(clavePreparada);
+  const plaintext = agregarPadding(mensaje);
+  const encrypted = new Uint8Array(plaintext.length);
 
-  /* console.log('Subclaves generadas:');
-  subclaves.forEach((subclave, index) => {
-    const subclaveHex = Array.from(subclave).map(byte => byte.toString(16).padStart(2, '0')).join('');
-    console.log(`Subclave ${index}: ${BigInt("0x" + subclaveHex).toString()}`);
-  }); */
-
-  // Agrega padding para completar bloques de 16 bytes
-  const mensaje_con_padding = agregar_padding(mensaje);
-
-  console.log("Mensaje con padding:", bytesToPythonStyle(mensaje_con_padding));
-
-  let resultadoBytes: number[] = [];
-
-  for (let i = 0; i < mensaje_con_padding.length; i += 16) {
-    const bloque = mensaje_con_padding.slice(i, i + 16);
-    const bloqueCifrado = cifrar_bloque(bloque, subclaves);
-    console.log(`Bloque ${i / 16}:`, bytesToPythonStyle(bloqueCifrado));
-    resultadoBytes.push(...bloqueCifrado);
+  for (let i = 0; i < plaintext.length; i += 16) {
+    const bloque = plaintext.slice(i, i + 16);
+    const bloqueCifrado = cifrarBloque(bloque, subclaves);
+    encrypted.set(bloqueCifrado, i);
   }
 
-  return resultadoBytes
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-
-export const seed_descifrar = (cipherHex: string, clave: string): string => {
-  const clavePreparada = prepararClave(clave);
-  const subclaves = generarSubclaves(clavePreparada);
-  const subclavesInvertidas = [...subclaves].reverse();
-
-  // convertir hex → bytes
-  const bytes = new Uint8Array(
-    cipherHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
-  );
-
-  let resultadoBytes: number[] = [];
-
-  for (let i = 0; i < bytes.length; i += 16) {
-    const bloque = bytes.slice(i, i + 16);
-    const bloqueDescifrado = cifrar_bloque(bloque, subclavesInvertidas);
-    resultadoBytes.push(...bloqueDescifrado);
-  }
-
-  // quitar padding (PKCS#7)
-  const padding = resultadoBytes[resultadoBytes.length - 1];
-  const mensajeSinPadding = resultadoBytes.slice(0, -padding);
-
-  return new TextDecoder().decode(new Uint8Array(mensajeSinPadding));
+  return bytesAHex(encrypted);
 };
 
+export const seed_descifrar = (cipherHex: string, clave: string): string => {
+  const key = prepararClave(clave);
+  const subclaves = generarSubclaves(key);
+
+  const encrypted = hexABytes(cipherHex);
+
+  if (encrypted.length % 16 !== 0) {
+    throw new Error("El texto cifrado debe tener una longitud múltiplo de 16 bytes.");
+  }
+
+  const decrypted = new Uint8Array(encrypted.length);
+
+  for (let i = 0; i < encrypted.length; i += 16) {
+    const bloque = encrypted.slice(i, i + 16);
+    const bloqueDescifrado = descifrarBloque(bloque, subclaves);
+    decrypted.set(bloqueDescifrado, i);
+  }
+
+  const padding = decrypted[decrypted.length - 1];
+
+  if (padding < 1 || padding > 16) {
+    throw new Error("Padding inválido.");
+  }
+
+  const mensajeSinPadding = decrypted.slice(0, decrypted.length - padding);
+
+  return new TextDecoder().decode(mensajeSinPadding);
+};
+
+/*
+ * Prueba rápida:
+ * Debe dar:
+ * CB03D044B4C84D430A207DA9303D18BC
+ */
+
 const main = () => {
-  const clave = "MiClaveSecreta16";
-  const mensaje = "Hola, esto es una prueba del algoritmo SEED!";
+  const mensaje = "Hola gatito";
+  const clave = "Pupi";
 
-  const mensaje_cifrado = seed_cifrar(mensaje, clave);
+  const cifrado = seed_cifrar(mensaje, clave);
+  const descifrado = seed_descifrar(cifrado, clave);
 
-  console.log("Mensaje cifrado:", mensaje_cifrado);
+  console.log("Mensaje original:", mensaje);
+  console.log("Clave usada:", clave);
+  console.log("Mensaje cifrado final en hexadecimal:");
+  console.log(cifrado);
+  console.log("Mensaje descifrado:");
+  console.log(descifrado);
+};
 
-  const mensaje_descifrado = seed_descifrar(mensaje_cifrado, clave);
-
-  console.log("Mensaje descifrado (hex):", mensaje_descifrado);
-}
-
-main()
+main();
