@@ -144,6 +144,8 @@ export default function SeedVisualizer() {
         <ResultPanel
           title={mode === 'encrypt' ? 'Mensaje cifrado final en hexadecimal' : 'Mensaje original recuperado'}
           value={currentResult}
+          secondaryTitle={mode === 'encrypt' ? 'Mensaje final en Base64' : undefined}
+          secondaryValue={mode === 'encrypt' ? encryptTrace?.finalResultBase64 : undefined}
           onCopy={handleCopy}
         />
       </div>

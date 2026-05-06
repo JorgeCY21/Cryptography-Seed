@@ -24,6 +24,16 @@ type SeedSubkeyPair = [number, number];
 const joinWordPairHex = (left: number, right: number): string =>
   `${numberToHex32(left)}${numberToHex32(right)}`;
 
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+};
+
 const subkeysToTrace = (subkeys: SeedSubkeyPair[]): SeedSubkeyTrace[] =>
   subkeys.map((subkey, index) => ({
     index,
@@ -120,6 +130,8 @@ export const createEncryptionTrace = (message: string, key: string): SeedEncrypt
     throw new Error('La traza de cifrado no coincide con seed_cifrar.');
   }
 
+  const encryptedBytes = hexABytes(referenceResultHex);
+
   return {
     input: {
       mode: 'encrypt',
@@ -142,6 +154,7 @@ export const createEncryptionTrace = (message: string, key: string): SeedEncrypt
     subkeys: subkeysToTrace(subkeys),
     blocks,
     finalResultHex: referenceResultHex,
+    finalResultBase64: bytesToBase64(encryptedBytes),
   };
 };
 

@@ -325,10 +325,23 @@ td {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.result-shell {
-  display: flex;
-  flex-direction: column;
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
+  margin-top: 16px;
+}
+
+.result-box {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(4, 10, 20, 0.58);
+  border: 1px solid rgba(126, 180, 255, 0.14);
+}
+
+.result-actions {
   margin-top: 16px;
 }
 
