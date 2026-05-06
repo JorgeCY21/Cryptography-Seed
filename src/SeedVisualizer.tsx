@@ -30,6 +30,31 @@ export default function SeedVisualizer() {
 
   const currentResult = mode === 'encrypt' ? encryptTrace?.finalResultHex ?? '' : decryptTrace?.finalPlaintext ?? '';
 
+  const mapProcessError = (traceError: unknown): string => {
+    if (!(traceError instanceof Error)) {
+      return 'No se pudo completar el proceso solicitado.';
+    }
+
+    const normalized = traceError.message.toLowerCase();
+
+    if (normalized.includes('padding')) {
+      return 'El texto no pudo desencriptarse con esa combinacion de datos. La clave se ingresa como texto normal, pero esta version de SEED la convierte a UTF-8 y la ajusta a 16 bytes. Verifica que estes usando el mismo hexadecimal y exactamente la misma clave de origen.';
+    }
+
+    return traceError.message;
+  };
+
+  const handleModeChange = (nextMode: SeedMode) => {
+    setMode(nextMode);
+    setError(null);
+    setActiveStep('input');
+
+    if (nextMode === 'decrypt' && encryptTrace) {
+      setMessage(encryptTrace.finalResultHex);
+      setKeyText(encryptTrace.input.originalKey);
+    }
+  };
+
   const handleRun = () => {
     const validation =
       mode === 'encrypt'
@@ -56,11 +81,7 @@ export default function SeedVisualizer() {
 
       setActiveStep('preparation');
     } catch (traceError) {
-      setError(
-        traceError instanceof Error
-          ? traceError.message
-          : 'No se pudo completar el proceso solicitado.',
-      );
+      setError(mapProcessError(traceError));
     }
   };
 
@@ -119,7 +140,7 @@ export default function SeedVisualizer() {
             explicar el funcionamiento interno de una red Feistel sin alterar la implementacion original.
           </p>
         </div>
-        <ModeTabs mode={mode} onChange={setMode} />
+        <ModeTabs mode={mode} onChange={handleModeChange} />
       </section>
 
       <Stepper activeStep={activeStep} onStepClick={handleStepClick} />
@@ -250,6 +271,10 @@ function renderDecryptTrace(trace: SeedDecryptionTrace | null) {
             <div>
               <span className="kv-label">Bytes del cifrado</span>
               <code>{trace.cipherInput.cipherBytesHex}</code>
+            </div>
+            <div>
+              <span className="kv-label">Modo de descifrado aplicado</span>
+              <code>{trace.decryptionVariantLabel}</code>
             </div>
             <div>
               <span className="kv-label">Clave original</span>

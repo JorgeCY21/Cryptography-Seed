@@ -4,12 +4,13 @@ import {
   bytesAEntero,
   bytesAHex,
   cifrarBloque,
+  descifrarBloque,
   generarSubclaves,
   hexABytes,
   prepararClave,
   seed_cifrar,
   seed_descifrar,
-} from '../archivo';
+} from 'virtual:seed-core';
 import { numberToHex32, safeTextPreview, sanitizeHex, splitBlocks } from './seedFormatters';
 import type {
   SeedBlockTrace,
@@ -116,6 +117,43 @@ const traceBlock = (
   };
 };
 
+const concatBlocks = (blocks: Uint8Array[]): Uint8Array =>
+  new Uint8Array(blocks.flatMap((block) => Array.from(block)));
+
+const xorBlocks = (left: Uint8Array, right: Uint8Array): Uint8Array => {
+  const output = new Uint8Array(left.length);
+
+  for (let index = 0; index < left.length; index += 1) {
+    output[index] = left[index] ^ right[index];
+  }
+
+  return output;
+};
+
+const stripPkcs7Padding = (
+  bytes: Uint8Array,
+): { paddingLength: number; unpaddedPlaintextBytes: Uint8Array } => {
+  const paddingLength = bytes[bytes.length - 1] ?? 0;
+
+  if (paddingLength < 1 || paddingLength > 16) {
+    throw new Error('Padding invalido.');
+  }
+
+  for (let index = bytes.length - paddingLength; index < bytes.length; index += 1) {
+    if (bytes[index] !== paddingLength) {
+      throw new Error('Padding invalido.');
+    }
+  }
+
+  return {
+    paddingLength,
+    unpaddedPlaintextBytes: bytes.slice(0, bytes.length - paddingLength),
+  };
+};
+
+const decodeUtf8Strict = (bytes: Uint8Array): string =>
+  new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+
 export const createEncryptionTrace = (message: string, key: string): SeedEncryptionTrace => {
   const preparedKey = prepararClave(key);
   const subkeys = generarSubclaves(preparedKey);
@@ -164,17 +202,47 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
   const preparedKey = prepararClave(key);
   const subkeys = generarSubclaves(preparedKey);
   const reversedSubkeys = [...subkeys].reverse();
-  const blocks = splitBlocks(cipherBytes).map((block, index) => traceBlock(block, reversedSubkeys, index));
-  const paddedPlaintextBytes = new Uint8Array(
-    blocks.flatMap((block) => Array.from(hexABytes(block.outputBlockHex))),
-  );
-  const paddingLength = paddedPlaintextBytes[paddedPlaintextBytes.length - 1] ?? 0;
-  const unpaddedPlaintextBytes = paddedPlaintextBytes.slice(0, paddedPlaintextBytes.length - paddingLength);
-  const finalPlaintext = new TextDecoder().decode(unpaddedPlaintextBytes);
-  const referencePlaintext = seed_descifrar(cipherHex, key);
+  const tracedBlocks = splitBlocks(cipherBytes).map((block, index) => traceBlock(block, reversedSubkeys, index));
 
-  if (finalPlaintext !== referencePlaintext) {
-    throw new Error('La traza de descifrado no coincide con seed_descifrar.');
+  let blocks = tracedBlocks;
+  let paddedPlaintextBytes: Uint8Array;
+  let paddingLength: number;
+  let unpaddedPlaintextBytes: Uint8Array;
+  let finalPlaintext: string;
+  let decryptionVariant: 'direct' | 'cbc-zero-iv' = 'direct';
+  let decryptionVariantLabel = 'Modo directo del archivo base';
+
+  try {
+    const referencePlaintext = seed_descifrar(cipherHex, key);
+    paddedPlaintextBytes = concatBlocks(blocks.map((block) => hexABytes(block.outputBlockHex)));
+    ({ paddingLength, unpaddedPlaintextBytes } = stripPkcs7Padding(paddedPlaintextBytes));
+    finalPlaintext = decodeUtf8Strict(unpaddedPlaintextBytes);
+
+    if (finalPlaintext !== referencePlaintext) {
+      throw new Error('La traza de descifrado no coincide con seed_descifrar.');
+    }
+  } catch (directError) {
+    const cipherBlocks = splitBlocks(cipherBytes);
+    const zeroIv = new Uint8Array(16);
+    const compatiblePlaintextBlocks = cipherBlocks.map((cipherBlock, index) => {
+      const rawDecryptedBlock = descifrarBloque(cipherBlock, subkeys);
+      const previousCipherBlock = index === 0 ? zeroIv : cipherBlocks[index - 1];
+      return xorBlocks(rawDecryptedBlock, previousCipherBlock);
+    });
+
+    try {
+      paddedPlaintextBytes = concatBlocks(compatiblePlaintextBlocks);
+      ({ paddingLength, unpaddedPlaintextBytes } = stripPkcs7Padding(paddedPlaintextBytes));
+      finalPlaintext = decodeUtf8Strict(unpaddedPlaintextBytes);
+      decryptionVariant = 'cbc-zero-iv';
+      decryptionVariantLabel = 'Modo compatible CBC con IV cero';
+      blocks = tracedBlocks.map((block, index) => ({
+        ...block,
+        outputBlockHex: bytesAHex(compatiblePlaintextBlocks[index]),
+      }));
+    } catch {
+      throw directError;
+    }
   }
 
   return {
@@ -183,6 +251,8 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
       originalCipherHex: cipherHex.toUpperCase(),
       originalKey: key,
     },
+    decryptionVariant,
+    decryptionVariantLabel,
     cipherInput: {
       cipherHex: cipherHex.toUpperCase(),
       cipherBytes,
@@ -204,7 +274,7 @@ export const createDecryptionTrace = (cipherHexInput: string, key: string): Seed
       unpaddedPlaintextBytes,
       unpaddedPlaintextHex: bytesAHex(unpaddedPlaintextBytes),
     },
-    finalPlaintext: referencePlaintext,
+    finalPlaintext,
   };
 };
 

@@ -1,3 +1,5 @@
+import readline from "readline";
+
 const S0 = [
   0xA9, 0x85, 0xD6, 0xD3, 0x54, 0x1D, 0xAC, 0x25,
   0x5D, 0x43, 0x18, 0x1E, 0x51, 0xFC, 0xCA, 0x63,
@@ -370,25 +372,47 @@ export const seed_descifrar = (cipherHex: string, clave: string): string => {
   return new TextDecoder().decode(mensajeSinPadding);
 };
 
-/*
- * Prueba rápida:
- * Debe dar:
- * CB03D044B4C84D430A207DA9303D18BC
- */
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
-const main = () => {
-  const mensaje = "Hola gatito";
-  const clave = "Pupi";
+const preguntar = (pregunta: string): Promise<string> => {
+  return new Promise((resolve) => {
+    rl.question(pregunta, (respuesta) => {
+      resolve(respuesta);
+    });
+  });
+};
 
-  const cifrado = seed_cifrar(mensaje, clave);
-  const descifrado = seed_descifrar(cifrado, clave);
+const main = async () => {
+  try {
+    const mensaje = await preguntar("Ingrese el mensaje a cifrar: ");
+    const clave = await preguntar("Ingrese la clave secreta: ");
 
-  console.log("Mensaje original:", mensaje);
-  console.log("Clave usada:", clave);
-  console.log("Mensaje cifrado final en hexadecimal:");
-  console.log(cifrado);
-  console.log("Mensaje descifrado:");
-  console.log(descifrado);
+    if (!mensaje.trim()) {
+      throw new Error("El mensaje no puede estar vacío.");
+    }
+
+    if (!clave.trim()) {
+      throw new Error("La clave no puede estar vacía.");
+    }
+
+    const cifrado = seed_cifrar(mensaje, clave);
+    const descifrado = seed_descifrar(cifrado, clave);
+
+    console.log("\n========== RESULTADO ==========");
+    console.log("Mensaje original:", mensaje);
+    console.log("Clave usada:", clave);
+    console.log("Mensaje cifrado final en hexadecimal:");
+    console.log(cifrado);
+    console.log("Mensaje descifrado:");
+    console.log(descifrado);
+  } catch (error) {
+    console.error("\nError:", error instanceof Error ? error.message : error);
+  } finally {
+    rl.close();
+  }
 };
 
 main();

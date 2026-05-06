@@ -80,6 +80,8 @@ export interface SeedEncryptionTrace {
 
 export interface SeedDecryptionTrace {
   input: TraceInputSummary;
+  decryptionVariant: 'direct' | 'cbc-zero-iv';
+  decryptionVariantLabel: string;
   cipherInput: CipherInputSummary;
   keyPreparation: KeyPreparationSummary;
   subkeys: SeedSubkeyTrace[];

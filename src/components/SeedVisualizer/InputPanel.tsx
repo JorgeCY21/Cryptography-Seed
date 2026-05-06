@@ -41,8 +41,8 @@ export function InputPanel({
             onChange={(event) => onMessageChange(event.target.value)}
             placeholder={
               isEncrypt
-                ? 'Escribe el mensaje que será procesado por SEED'
-                : 'Pega aquí el texto cifrado en hexadecimal'
+                ? 'Escribe el mensaje que sera procesado por SEED'
+                : 'Pega aqui el texto cifrado en hexadecimal, no en Base64'
             }
           />
         </label>
@@ -53,10 +53,22 @@ export function InputPanel({
             type="text"
             value={keyText}
             onChange={(event) => onKeyChange(event.target.value)}
-            placeholder="Ingresa la clave"
+            placeholder="Ingresa la clave como texto normal"
           />
         </label>
       </div>
+
+      <p className="section-copy">
+        La clave se escribe como texto normal. El algoritmo la convierte internamente a bytes UTF-8 y la ajusta a 16
+        bytes antes de usarla.
+      </p>
+
+      {!isEncrypt ? (
+        <p className="section-copy">
+          Usa el texto cifrado en hexadecimal exacto. Si la clave no coincide o pegas Base64 en lugar de
+          hexadecimal, el algoritmo puede terminar en padding invalido.
+        </p>
+      ) : null}
 
       {error ? <div className="error-banner">{error}</div> : null}
 
